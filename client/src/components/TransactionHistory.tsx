@@ -14,9 +14,12 @@ import { useToast } from "@/hooks/use-toast";
 
 interface Transaction {
   id: string;
-  dataType: string;
-  value: number;
-  unit: string;
+  name: string;
+  age: number;
+  bloodPressure: string;
+  heartRate: number;
+  sugar: number;
+  bloodGroup: string;
   txHash: string | null;
   txStatus: "pending" | "confirmed" | "failed";
   timestamp: string;
@@ -54,24 +57,20 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
     }
   };
 
-  const formatDataType = (dataType: string) => {
-    return dataType.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
-  };
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Transaction History</CardTitle>
+        <CardTitle>Health Records History</CardTitle>
         <CardDescription>
-          All your health data submissions recorded on the blockchain
+          All your private health records securely stored
         </CardDescription>
       </CardHeader>
       <CardContent>
         {transactions.length === 0 ? (
           <div className="text-center py-12" data-testid="empty-state">
-            <p className="text-muted-foreground">No transactions yet</p>
+            <p className="text-muted-foreground">No records yet</p>
             <p className="text-sm text-muted-foreground mt-2">
-              Submit your first health data to get started
+              Submit your first health information to get started
             </p>
           </div>
         ) : (
@@ -80,8 +79,12 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date/Time</TableHead>
-                  <TableHead>Data Type</TableHead>
-                  <TableHead>Value</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Age</TableHead>
+                  <TableHead>BP</TableHead>
+                  <TableHead>HR</TableHead>
+                  <TableHead>Sugar</TableHead>
+                  <TableHead>Blood Group</TableHead>
                   <TableHead>Transaction Hash</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -93,10 +96,12 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
                     <TableCell className="font-mono text-sm">
                       {new Date(tx.timestamp).toLocaleString()}
                     </TableCell>
-                    <TableCell>{formatDataType(tx.dataType)}</TableCell>
-                    <TableCell>
-                      {tx.value} {tx.unit}
-                    </TableCell>
+                    <TableCell>{tx.name}</TableCell>
+                    <TableCell>{tx.age}</TableCell>
+                    <TableCell>{tx.bloodPressure}</TableCell>
+                    <TableCell>{tx.heartRate} bpm</TableCell>
+                    <TableCell>{tx.sugar} mg/dL</TableCell>
+                    <TableCell>{tx.bloodGroup}</TableCell>
                     <TableCell>
                       {tx.txHash ? (
                         <div className="flex items-center gap-2">

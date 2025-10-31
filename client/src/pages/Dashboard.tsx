@@ -48,19 +48,6 @@ export default function Dashboard() {
     enabled: !!walletAddress && isConnected,
   });
 
-  const dataTypeIcons: Record<string, any> = {
-    heartRate: Heart,
-    bloodPressure: Activity,
-    glucose: Droplet,
-    steps: Footprints,
-    weight: Weight,
-    sleep: Moon,
-  };
-
-  const formatDataType = (dataType: string) => {
-    return dataType.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
-  };
-
   const formatTimestamp = (timestamp: Date | string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -75,19 +62,22 @@ export default function Dashboard() {
   };
 
   const recentMetrics = healthDataList.slice(0, 3).map((data) => ({
-    title: formatDataType(data.dataType),
-    value: data.value,
-    unit: data.unit,
-    icon: dataTypeIcons[data.dataType] || Heart,
+    title: data.name,
+    value: `${data.heartRate} bpm`,
+    unit: `BP: ${data.bloodPressure}`,
+    icon: Heart,
     timestamp: formatTimestamp(data.timestamp),
     txStatus: data.txStatus as "pending" | "confirmed" | "failed",
   }));
 
   const transactions = healthDataList.map((data) => ({
     id: data.id,
-    dataType: data.dataType,
-    value: data.value,
-    unit: data.unit,
+    name: data.name,
+    age: data.age,
+    bloodPressure: data.bloodPressure,
+    heartRate: data.heartRate,
+    sugar: data.sugar,
+    bloodGroup: data.bloodGroup,
     txHash: data.txHash,
     txStatus: data.txStatus as "pending" | "confirmed" | "failed",
     timestamp: new Date(data.timestamp).toISOString(),
@@ -96,10 +86,13 @@ export default function Dashboard() {
   const confirmedCount = healthDataList.filter((d) => d.txStatus === "confirmed").length;
   const pendingCount = healthDataList.filter((d) => d.txStatus === "pending").length;
 
-  const handleSubmitHealthData = async (data: {
-    dataType: string;
-    value: number;
-    unit: string;
+  const handleSubmitHealthData = async (healthInfo: {
+    name: string;
+    age: number;
+    bloodPressure: string;
+    heartRate: number;
+    sugar: number;
+    bloodGroup: string;
   }) => {
     if (!isConnected) {
       toast({
@@ -117,7 +110,7 @@ export default function Dashboard() {
     });
 
     try {
-      const result = await submitHealthData(data.dataType, data.value, data.unit);
+      const result = await submitHealthData(healthInfo);
 
       setModalState({
         isOpen: true,
@@ -149,7 +142,7 @@ export default function Dashboard() {
       if (finalStatus === "confirmed") {
         toast({
           title: "Transaction Confirmed",
-          description: "Your health data has been recorded on the blockchain",
+          description: "Your private health data has been securely recorded",
         });
       } else {
         toast({
@@ -188,7 +181,7 @@ export default function Dashboard() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold">SafeStatAnalytics</h1>
+            <h1 className="text-xl font-bold">WellnessMonitor</h1>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -212,7 +205,7 @@ export default function Dashboard() {
             <div>
               <h2 className="text-3xl font-bold mb-2">Dashboard</h2>
               <p className="text-muted-foreground">
-                Track your health metrics on the blockchain
+                Securely monitor your private health information
               </p>
             </div>
 

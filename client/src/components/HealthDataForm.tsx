@@ -20,12 +20,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Activity, Heart, Droplet, Footprints, Weight, Moon } from "lucide-react";
+import { User } from "lucide-react";
 
 const healthDataSchema = z.object({
-  dataType: z.enum(["heartRate", "bloodPressure", "glucose", "steps", "weight", "sleep"]),
-  value: z.coerce.number().int().positive("Value must be a positive number"),
-  unit: z.string(),
+  name: z.string().min(1, "Name is required"),
+  age: z.coerce.number().int().positive("Age must be a positive number").max(150, "Please enter a valid age"),
+  bloodPressure: z.string().min(1, "Blood pressure is required").regex(/^\d+\/\d+$/, "Format should be systolic/diastolic (e.g., 120/80)"),
+  heartRate: z.coerce.number().int().positive("Heart rate must be a positive number").max(300, "Please enter a valid heart rate"),
+  sugar: z.coerce.number().positive("Blood sugar must be a positive number"),
+  bloodGroup: z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"], {
+    errorMap: () => ({ message: "Please select a valid blood group" }),
+  }),
 });
 
 type HealthDataFormValues = z.infer<typeof healthDataSchema>;
@@ -35,34 +40,18 @@ interface HealthDataFormProps {
   isPending?: boolean;
 }
 
-const dataTypeOptions = [
-  { value: "heartRate", label: "Heart Rate", unit: "bpm", icon: Heart },
-  { value: "bloodPressure", label: "Blood Pressure", unit: "mmHg", icon: Activity },
-  { value: "glucose", label: "Blood Glucose", unit: "mg/dL", icon: Droplet },
-  { value: "steps", label: "Steps", unit: "steps", icon: Footprints },
-  { value: "weight", label: "Weight", unit: "lbs", icon: Weight },
-  { value: "sleep", label: "Sleep Duration", unit: "hours", icon: Moon },
-];
-
 export function HealthDataForm({ onSubmit, isPending = false }: HealthDataFormProps) {
   const form = useForm<HealthDataFormValues>({
     resolver: zodResolver(healthDataSchema),
     defaultValues: {
-      dataType: "heartRate",
-      value: 0,
-      unit: "bpm",
+      name: "",
+      age: 0,
+      bloodPressure: "",
+      heartRate: 0,
+      sugar: 0,
+      bloodGroup: "O+",
     },
   });
-
-  const selectedDataType = form.watch("dataType");
-  const selectedOption = dataTypeOptions.find((opt) => opt.value === selectedDataType);
-
-  const handleDataTypeChange = (value: string) => {
-    const option = dataTypeOptions.find((opt) => opt.value === value);
-    if (option) {
-      form.setValue("unit", option.unit);
-    }
-  };
 
   const handleSubmit = async (data: HealthDataFormValues) => {
     await onSubmit(data);
@@ -72,63 +61,28 @@ export function HealthDataForm({ onSubmit, isPending = false }: HealthDataFormPr
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Submit Health Data</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <User className="h-5 w-5" />
+          Submit Health Information
+        </CardTitle>
         <CardDescription>
-          Record your health metrics to the blockchain
+          Securely record your private health data
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="dataType"
+              name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Data Type *</FormLabel>
-                  <Select
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      handleDataTypeChange(value);
-                    }}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger data-testid="select-data-type">
-                        <SelectValue placeholder="Select health metric" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {dataTypeOptions.map((option) => {
-                        const Icon = option.icon;
-                        return (
-                          <SelectItem key={option.value} value={option.value}>
-                            <div className="flex items-center gap-2">
-                              <Icon className="h-4 w-4" />
-                              {option.label}
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="value"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Value *</FormLabel>
+                  <FormLabel>Name *</FormLabel>
                   <FormControl>
                     <Input
-                      type="number"
-                      placeholder="Enter value"
+                      placeholder="Enter your name"
                       {...field}
-                      data-testid="input-value"
+                      data-testid="input-name"
                     />
                   </FormControl>
                   <FormMessage />
@@ -138,13 +92,102 @@ export function HealthDataForm({ onSubmit, isPending = false }: HealthDataFormPr
 
             <FormField
               control={form.control}
-              name="unit"
+              name="age"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Unit</FormLabel>
+                  <FormLabel>Age *</FormLabel>
                   <FormControl>
-                    <Input {...field} disabled data-testid="input-unit" />
+                    <Input
+                      type="number"
+                      placeholder="Enter your age"
+                      {...field}
+                      data-testid="input-age"
+                    />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="bloodPressure"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Blood Pressure (BP) *</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g., 120/80"
+                      {...field}
+                      data-testid="input-bp"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="heartRate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Heart Rate (bpm) *</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="e.g., 72"
+                      {...field}
+                      data-testid="input-heart-rate"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="sugar"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Blood Sugar (mg/dL) *</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="e.g., 90"
+                      {...field}
+                      data-testid="input-sugar"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="bloodGroup"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Blood Group *</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-blood-group">
+                        <SelectValue placeholder="Select blood group" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="A+">A+</SelectItem>
+                      <SelectItem value="A-">A-</SelectItem>
+                      <SelectItem value="B+">B+</SelectItem>
+                      <SelectItem value="B-">B-</SelectItem>
+                      <SelectItem value="AB+">AB+</SelectItem>
+                      <SelectItem value="AB-">AB-</SelectItem>
+                      <SelectItem value="O+">O+</SelectItem>
+                      <SelectItem value="O-">O-</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -162,7 +205,7 @@ export function HealthDataForm({ onSubmit, isPending = false }: HealthDataFormPr
                   Submitting...
                 </>
               ) : (
-                "Submit to Blockchain"
+                "Submit Securely"
               )}
             </Button>
           </form>

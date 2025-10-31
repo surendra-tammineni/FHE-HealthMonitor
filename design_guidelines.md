@@ -1,4 +1,4 @@
-# SafeStatAnalytics Design Guidelines
+# WellnessMonitor Design Guidelines
 
 ## Design Approach
 

@@ -89,9 +89,14 @@ export class Web3Service {
 
   async submitHealthData(
     walletAddress: string,
-    dataType: string,
-    value: number,
-    unit: string
+    healthInfo: {
+      name: string;
+      age: number;
+      bloodPressure: string;
+      heartRate: number;
+      sugar: number;
+      bloodGroup: string;
+    }
   ): Promise<TransactionResult> {
     if (!this.provider) {
       throw new Error("No Web3 provider found");
@@ -99,9 +104,7 @@ export class Web3Service {
 
     try {
       const data = JSON.stringify({
-        dataType,
-        value,
-        unit,
+        ...healthInfo,
         timestamp: Date.now(),
       });
 

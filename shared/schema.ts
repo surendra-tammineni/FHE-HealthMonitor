@@ -12,9 +12,12 @@ export const users = pgTable("users", {
 export const healthData = pgTable("health_data", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   walletAddress: text("wallet_address").notNull(),
-  dataType: text("data_type").notNull(),
-  value: integer("value").notNull(),
-  unit: text("unit").notNull(),
+  name: text("name").notNull(),
+  age: integer("age").notNull(),
+  bloodPressure: text("blood_pressure").notNull(),
+  heartRate: integer("heart_rate").notNull(),
+  sugar: integer("sugar").notNull(),
+  bloodGroup: text("blood_group").notNull(),
   txHash: text("tx_hash"),
   txStatus: text("tx_status").notNull().default("pending"),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
@@ -29,9 +32,12 @@ export const insertHealthDataSchema = createInsertSchema(healthData).omit({
   id: true,
   timestamp: true,
 }).extend({
-  value: z.number().int().positive(),
-  dataType: z.enum(["heartRate", "bloodPressure", "glucose", "steps", "weight", "sleep"]),
-  unit: z.string(),
+  name: z.string().min(1),
+  age: z.number().int().positive().max(150),
+  bloodPressure: z.string().regex(/^\d+\/\d+$/),
+  heartRate: z.number().int().positive().max(300),
+  sugar: z.number().positive(),
+  bloodGroup: z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

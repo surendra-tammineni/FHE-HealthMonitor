@@ -4,7 +4,7 @@ import { LucideIcon } from "lucide-react";
 
 interface HealthMetricCardProps {
   title: string;
-  value: number;
+  value: number | string;
   unit: string;
   icon: LucideIcon;
   timestamp?: string;

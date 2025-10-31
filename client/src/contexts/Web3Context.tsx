@@ -8,11 +8,14 @@ interface Web3ContextType {
   isConnecting: boolean;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
-  submitHealthData: (
-    dataType: string,
-    value: number,
-    unit: string
-  ) => Promise<{ hash: string; status: "pending" | "confirmed" | "failed"; recordId: string }>;
+  submitHealthData: (healthInfo: {
+    name: string;
+    age: number;
+    bloodPressure: string;
+    heartRate: number;
+    sugar: number;
+    bloodGroup: string;
+  }) => Promise<{ hash: string; status: "pending" | "confirmed" | "failed"; recordId: string }>;
   networkName: string;
 }
 
@@ -92,11 +95,14 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     });
   };
 
-  const submitHealthData = async (
-    dataType: string,
-    value: number,
-    unit: string
-  ): Promise<{ hash: string; status: "pending" | "confirmed" | "failed"; recordId: string }> => {
+  const submitHealthData = async (healthInfo: {
+    name: string;
+    age: number;
+    bloodPressure: string;
+    heartRate: number;
+    sugar: number;
+    bloodGroup: string;
+  }): Promise<{ hash: string; status: "pending" | "confirmed" | "failed"; recordId: string }> => {
     if (!walletAddress) {
       throw new Error("No wallet connected");
     }
@@ -109,9 +115,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         },
         body: JSON.stringify({
           walletAddress,
-          dataType,
-          value,
-          unit,
+          ...healthInfo,
           txHash: null,
           txStatus: "pending",
         }),
@@ -123,12 +127,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
       const savedData = await healthDataResponse.json();
 
-      const result = await web3Service.submitHealthData(
-        walletAddress,
-        dataType,
-        value,
-        unit
-      );
+      const result = await web3Service.submitHealthData(walletAddress, healthInfo);
 
       await fetch(`/api/health-data/${savedData.id}/transaction`, {
         method: "PATCH",
