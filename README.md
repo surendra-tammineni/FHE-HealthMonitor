@@ -1,10 +1,10 @@
-FHE HealthMonitor is a privacy-preserving wellness tracking platform that leverages Fully Homomorphic Encryption (FHE) through the Zama SDK.
+**FHE HealthMonitor** is a privacy-preserving wellness tracking platform that leverages Fully Homomorphic Encryption (FHE) through the Zama SDK.
 It enables users to monitor key health metrics—such as heart rate, blood pressure, and activity levels—while keeping their data encrypted at all times, even during processing.
 
 By performing computations directly on encrypted data, FHE HealthMonitor ensures that no sensitive health information is ever exposed to servers or third parties.
 The platform demonstrates how encrypted analytics can provide personalized health insights without compromising user privacy.
 
-Tech stack:
+**Tech stack:**
 
 Frontend: React, TailwindCSS
 
@@ -16,7 +16,7 @@ Database: PostgreSQL
 
 Hosting: Railway.app
 
-Key features:
+**Key features:**
 
 Encrypted health data collection and visualization
 
