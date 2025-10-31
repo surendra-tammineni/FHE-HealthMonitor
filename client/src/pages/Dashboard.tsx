@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useWeb3 } from "@/contexts/Web3Context";
+import { web3Service } from "@/lib/web3";
 import { WalletButton } from "@/components/WalletButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { HealthDataForm } from "@/components/HealthDataForm";
@@ -6,12 +9,23 @@ import { HealthMetricCard } from "@/components/HealthMetricCard";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { TransactionModal } from "@/components/TransactionModal";
 import { EmptyState } from "@/components/EmptyState";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import { Heart, Activity, Droplet, Footprints, Weight, Moon } from "lucide-react";
+import type { HealthData } from "@shared/schema";
 
 export default function Dashboard() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const {
+    walletAddress,
+    isConnected,
+    isConnecting,
+    connectWallet,
+    disconnectWallet,
+    submitHealthData,
+    networkName,
+  } = useWeb3();
+
+  const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -23,77 +37,125 @@ export default function Dashboard() {
     status: "pending",
   });
 
-  const mockTransactions = [
-    {
-      id: "1",
-      dataType: "heartRate",
-      value: 72,
-      unit: "bpm",
-      txHash: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-      txStatus: "confirmed" as const,
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "2",
-      dataType: "bloodPressure",
-      value: 120,
-      unit: "mmHg",
-      txHash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-      txStatus: "pending" as const,
-      timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: "3",
-      dataType: "glucose",
-      value: 95,
-      unit: "mg/dL",
-      txHash: "0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321",
-      txStatus: "confirmed" as const,
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ];
+  const { data: healthDataList = [], isLoading } = useQuery<HealthData[]>({
+    queryKey: ["/api/health-data", walletAddress],
+    enabled: !!walletAddress && isConnected,
+  });
 
-  const recentMetrics = [
-    { title: "Heart Rate", value: 72, unit: "bpm", icon: Heart, timestamp: "2 hours ago", txStatus: "confirmed" as const },
-    { title: "Blood Pressure", value: 120, unit: "mmHg", icon: Activity, timestamp: "5 hours ago", txStatus: "pending" as const },
-    { title: "Blood Glucose", value: 95, unit: "mg/dL", icon: Droplet, timestamp: "1 day ago", txStatus: "confirmed" as const },
-  ];
-
-  const handleConnect = async () => {
-    setIsConnecting(true);
-    console.log("Connecting wallet...");
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setWalletAddress("0x1234567890abcdef1234567890abcdef12345678");
-    setIsConnected(true);
-    setIsConnecting(false);
+  const dataTypeIcons: Record<string, any> = {
+    heartRate: Heart,
+    bloodPressure: Activity,
+    glucose: Droplet,
+    steps: Footprints,
+    weight: Weight,
+    sleep: Moon,
   };
 
-  const handleDisconnect = () => {
-    console.log("Disconnecting wallet...");
-    setWalletAddress(null);
-    setIsConnected(false);
+  const formatDataType = (dataType: string) => {
+    return dataType.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
   };
 
-  const handleSubmitHealthData = async (data: any) => {
-    console.log("Submitting health data to blockchain:", data);
+  const formatTimestamp = (timestamp: Date | string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  };
+
+  const recentMetrics = healthDataList.slice(0, 3).map((data) => ({
+    title: formatDataType(data.dataType),
+    value: data.value,
+    unit: data.unit,
+    icon: dataTypeIcons[data.dataType] || Heart,
+    timestamp: formatTimestamp(data.timestamp),
+    txStatus: data.txStatus as "pending" | "confirmed" | "failed",
+  }));
+
+  const transactions = healthDataList.map((data) => ({
+    id: data.id,
+    dataType: data.dataType,
+    value: data.value,
+    unit: data.unit,
+    txHash: data.txHash,
+    txStatus: data.txStatus as "pending" | "confirmed" | "failed",
+    timestamp: new Date(data.timestamp).toISOString(),
+  }));
+
+  const confirmedCount = healthDataList.filter((d) => d.txStatus === "confirmed").length;
+  const pendingCount = healthDataList.filter((d) => d.txStatus === "pending").length;
+
+  const handleSubmitHealthData = async (data: {
+    dataType: string;
+    value: number;
+    unit: string;
+  }) => {
+    if (!isConnected) {
+      toast({
+        title: "Wallet Not Connected",
+        description: "Please connect your wallet first",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsPending(true);
-    
     setModalState({
       isOpen: true,
       status: "pending",
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      const result = await submitHealthData(data.dataType, data.value, data.unit);
 
-    const mockTxHash = `0x${Math.random().toString(16).substring(2, 66)}`;
-    
-    setModalState({
-      isOpen: true,
-      status: "confirmed",
-      txHash: mockTxHash,
-    });
+      setModalState({
+        isOpen: true,
+        status: "pending",
+        txHash: result.hash,
+      });
 
-    setIsPending(false);
+      const finalStatus = await web3Service.waitForTransaction(result.hash);
+
+      setModalState({
+        isOpen: true,
+        status: finalStatus,
+        txHash: result.hash,
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ["/api/health-data", walletAddress] });
+
+      if (finalStatus === "confirmed") {
+        toast({
+          title: "Transaction Confirmed",
+          description: "Your health data has been recorded on the blockchain",
+        });
+      } else {
+        toast({
+          title: "Transaction Failed",
+          description: "The transaction failed to complete",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error submitting health data:", error);
+      setModalState({
+        isOpen: true,
+        status: "failed",
+        errorMessage: error.message || "Failed to submit transaction",
+      });
+      toast({
+        title: "Submission Failed",
+        description: error.message || "Failed to submit health data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPending(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -117,9 +179,9 @@ export default function Dashboard() {
               walletAddress={walletAddress}
               isConnected={isConnected}
               isConnecting={isConnecting}
-              onConnect={handleConnect}
-              onDisconnect={handleDisconnect}
-              networkName="Sepolia"
+              onConnect={connectWallet}
+              onDisconnect={disconnectWallet}
+              networkName={networkName}
             />
           </div>
         </div>
@@ -127,7 +189,7 @@ export default function Dashboard() {
 
       <main className="container mx-auto px-4 py-8">
         {!isConnected ? (
-          <EmptyState type="wallet" onAction={handleConnect} />
+          <EmptyState type="wallet" onAction={connectWallet} />
         ) : (
           <div className="space-y-8">
             <div>
@@ -137,11 +199,13 @@ export default function Dashboard() {
               </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-3">
-              {recentMetrics.map((metric, index) => (
-                <HealthMetricCard key={index} {...metric} />
-              ))}
-            </div>
+            {recentMetrics.length > 0 && (
+              <div className="grid gap-6 md:grid-cols-3">
+                {recentMetrics.map((metric, index) => (
+                  <HealthMetricCard key={index} {...metric} />
+                ))}
+              </div>
+            )}
 
             <div className="grid gap-6 lg:grid-cols-2">
               <HealthDataForm onSubmit={handleSubmitHealthData} isPending={isPending} />
@@ -151,22 +215,22 @@ export default function Dashboard() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total Submissions:</span>
-                      <span className="font-semibold">3</span>
+                      <span className="font-semibold">{healthDataList.length}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Confirmed Transactions:</span>
-                      <span className="font-semibold text-green-500">2</span>
+                      <span className="font-semibold text-green-500">{confirmedCount}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Pending Transactions:</span>
-                      <span className="font-semibold text-yellow-500">1</span>
+                      <span className="font-semibold text-yellow-500">{pendingCount}</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <TransactionHistory transactions={mockTransactions} />
+            <TransactionHistory transactions={transactions} />
           </div>
         )}
       </main>
