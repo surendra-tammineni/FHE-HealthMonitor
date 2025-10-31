@@ -39,6 +39,12 @@ export default function Dashboard() {
 
   const { data: healthDataList = [], isLoading } = useQuery<HealthData[]>({
     queryKey: ["/api/health-data", walletAddress],
+    queryFn: async () => {
+      if (!walletAddress) return [];
+      const response = await fetch(`/api/health-data/${walletAddress}`);
+      if (!response.ok) throw new Error("Failed to fetch health data");
+      return response.json();
+    },
     enabled: !!walletAddress && isConnected,
   });
 
@@ -120,6 +126,17 @@ export default function Dashboard() {
       });
 
       const finalStatus = await web3Service.waitForTransaction(result.hash);
+
+      await fetch(`/api/health-data/${result.recordId}/transaction`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          txHash: result.hash,
+          txStatus: finalStatus,
+        }),
+      });
 
       setModalState({
         isOpen: true,

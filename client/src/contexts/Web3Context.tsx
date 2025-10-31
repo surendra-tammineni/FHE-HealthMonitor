@@ -12,7 +12,7 @@ interface Web3ContextType {
     dataType: string,
     value: number,
     unit: string
-  ) => Promise<TransactionResult>;
+  ) => Promise<{ hash: string; status: "pending" | "confirmed" | "failed"; recordId: string }>;
   networkName: string;
 }
 
@@ -96,7 +96,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     dataType: string,
     value: number,
     unit: string
-  ): Promise<TransactionResult> => {
+  ): Promise<{ hash: string; status: "pending" | "confirmed" | "failed"; recordId: string }> => {
     if (!walletAddress) {
       throw new Error("No wallet connected");
     }
@@ -141,7 +141,11 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         }),
       });
 
-      return result;
+      return {
+        hash: result.hash,
+        status: "pending",
+        recordId: savedData.id,
+      };
     } catch (error: any) {
       console.error("Error submitting health data:", error);
       throw error;

@@ -160,7 +160,8 @@ export class Web3Service {
         }
       }
 
-      return "confirmed";
+      console.error("Transaction receipt not found after max attempts");
+      return "failed";
     } catch (error) {
       console.error("Error waiting for transaction:", error);
       return "failed";
